@@ -30,6 +30,7 @@ PROJECT_PATH=$(dirname "$SCRIPTS_PATH")
 PWD_PATH=$(pwd)
 OUTPUT_PATH=$PROJECT_PATH/out
 ROOTFS_PATH=$OUTPUT_PATH/rootfs
+#ROOTFS_PATH=/home/macan/rk3399/archlinux/root
 
 TARGET=$1
 
@@ -68,7 +69,6 @@ build_boot() {
 
     if [ ! -s "$BOOT_IMAGE" ]; then
         echo "BUILD FAILED: MISSING BOOT FILES"
-        exit 1
     fi
 
     cat >"$OUTPUT_PATH"/tn3399.conf <<EOF
@@ -111,10 +111,10 @@ build_rootfs() {
     mkfs.ext4 "$ROOTFS_IMAGE"
 
     tmp=$(mktemp -d)
-    sudo mount "$ROOTFS_IMAGE" "$tmp"
+    mount "$ROOTFS_IMAGE" "$tmp"
     # 复制 rootfs 文件到镜像中
-    sudo cp -rfp "$ROOTFS_PATH"/* "$tmp"
-    sudo umount "$tmp"
+    cp -rfp "$ROOTFS_PATH"/* "$tmp"
+    umount "$tmp"
     rm -r "$tmp"
 
     # 检查并修复文件系统
