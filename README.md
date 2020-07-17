@@ -225,7 +225,7 @@ Setting up the kernel and rootfs is beyond the scope of this document.
 
 ##### 当刷入EMMC的UBOOT损坏时或者无法启动时，如何进入MaskRom模式
 
-经过分析和尝试，在MMC芯片背后的六个测试短路点中找到了对应的两个短接点，如下图所示。首先短接两个点，然后加电启动，即可进入MaskRom模式。使用rkdeveloptool ld即可发现已经进入该模式。
+经过分析和尝试，在MMC芯片背后的六个测试短路点中找到了对应的两个短接点(请参考doc/tn3399_v3_maskrom_pins图)。首先短接两个点，然后加电启动，即可进入MaskRom模式。使用rkdeveloptool ld即可发现已经进入该模式。
 ```shell
 $ rkdeveloptool/rkdeveloptool ld
 DevNo=1 Vid=0x2207,Pid=0x330c,LocationID=102    Maskrom
