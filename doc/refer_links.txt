@@ -1,0 +1,32 @@
+Refer Links for Board TN3399_v3
+
+1. ArchlinuxARM
+
+https://archlinuxarm.org/platforms/armv8/rockchip/rock64
+
+Step 1-9,11,12 is ok.
+
+2. Rockchip Kernel
+
+http://opensource.rock-chips.com/wiki_Rockchip_Kernel#Boot_from_U-Boot
+
+Rockchip 4.4 based kernel, and is working great with tn3399_v3. However, I havn't got a totally workable DTS/DTB file (wifi is not working) :-(
+
+3. u-boot/board/vamrs/rock960_rk3399/README
+
+GREAT document!
+
+3.1 Build idbloader.img
+
+cp -rp /data/rkbin/bin/rk33/rk3399_ddr_800MHz_v1.24.bin .
+cp -rp /data/rkbin/bin/rk33/rk3399_miniloader_v1.26.bin .
+ls
+tools/mkimage -n rk3399 -T rksd -d rk3399_ddr_800MHz_v1.24.bin idbloader.img
+cat rk3399_miniloader_v1.26.bin >> idbloader.img
+cp -rp idbloader.img /data/tn3399_v3/out/u-boot/idbloader.img
+
+3.2 Build uboot.img
+
+tools/loaderimage --pack --uboot ../u-boot/u-boot-dtb.bin uboot.img 0x200000
+cp -rp rkbin/uboot.img tn3399_v3/out/u-boot/u-boot.img
+
