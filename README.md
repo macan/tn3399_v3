@@ -119,8 +119,8 @@ make CROSS_COMPILE=aarch64-linux-gnu-
 git clone https://github.com/rockchip-linux/rkbin.git
 
 apt install -y bison flex python3 device-tree-compiler bc
-git clone -b stable-4.4-rk3399-linux https://github.com/rockchip-linux/u-boot.git
-cd u-boot
+git clone -b stable-4.4-rk3399-linux https://github.com/rockchip-linux/u-boot.git u-boot-rk
+cd u-boot-rk
 
 # 不使用项目指定工具链
 sed -i 's@TOOLCHAIN_ARM32=.*@TOOLCHAIN_ARM32=/@g' ./make.sh
@@ -130,11 +130,108 @@ sed -i 's@${absolute_path}/bin/@@g' ./make.sh
 # 编译修改过的 u-boot
 ./make.sh evb-rk3399
 # 得到如下文件
-rk3399_loader_v1.24.125.bin
+rk3399_loader_v1.24.126.bin
 trust.img
 uboot.img
+```
 
-# 也可以从此项目编译原版 u-boot
+##### 以下内容引用并修改自UBOOT ROCK960-RK3399的文档
+
+###### Get the Source and prebuild binary
+```shell
+  > git clone https://github.com/rockchip-linux/rkbin.git
+  > git clone https://github.com/rockchip-linux/rkdeveloptool.git
+```
+###### 编译原版U-Boot和rockchip维护的UBOOT
+
+根据前两节的步骤，编译原版UBOOT和rockchip维护的UBOOT，获得对应的文件。
+
+###### Compile the rkdeveloptool
+
+Follow instructions in latest README
+```shell
+  > cd ../rkdeveloptool
+  > autoreconf -i
+  > ./configure
+  > make
+  > sudo make install
+```
+###### Package the image
+
+Option 1: Package the image for U-Boot SPL 【未验证】
+```shell
+  > cd ..
+  > tools/mkimage -n rk3399 -T rksd -d spl/u-boot-spl.bin idbspl.img
+```
+  Get idbspl.img in this step.
+
+Option 2: Package the image for Rockchip miniloader 【已验证可行】
+```shell
+  > cd ../rkbin
+  > ./tools/loaderimage --pack --uboot u-boot/u-boot-dtb.bin uboot.img 0x200000
+
+  > ../u-boot/tools/mkimage -n rk3399 -T rksd -d rk3399_ddr_800MHz_v1.24.bin idbloader.img
+  > cat ./rk33/rk3399_miniloader_v1.26.bin >> idbloader.img
+```
+  Get uboot.img and idbloader.img in this step.
+
+###### Bootloader storage options
+
+There are a few different storage options for the bootloader.
+This document explores two of these: eMMC and removable SD/MMC.
+
+###### Flash the image to eMMC
+
+Option 1: Flash the image with U-Boot SPL 【未验证】
+
+Power on(or reset with RESET KEY) with MASKROM KEY preesed, and then:
+```shell
+  > rkdeveloptool db rkbin/rk33/rk3399_loader_v1.08.106.bin
+  > rkdeveloptool wl 64 u-boot/idbspl.img
+  > rkdeveloptool wl 0x4000 u-boot/u-boot.itb
+  > rkdeveloptool rd
+```
+Option 2: Flash the image with Rockchip miniloader 【已验证可行】
+
+Power on(or reset with RESET KEY) with MASKROM KEY preesed, and then:
+```shell
+  > rkdeveloptool db u-boot-rk/rk3399_loader_v1.24.126.bin
+  > rkdeveloptool wl 0x40 idbloader.img
+  > rkdeveloptool wl 0x4000 uboot.img
+  > rkdeveloptool wl 0x6000 u-boot-rk/trust.img
+  > rkdeveloptool rd
+```
+
+###### Create a bootable SD/MMC 【未验证】
+
+The idbspl.img contains the first stage, and the u-boot.img the second stage.
+As explained in the Rockchip partition table reference [1], the first stage
+(aka loader1) start sector is 64, and the second stage start sector is 16384.
+
+Each sector is 512 bytes, which means the first stage offset is 32 KiB,
+and the second stage offset is 8 MiB.
+
+Note: the second stage location is actually not as per the spec,
+but defined by the SPL. Mainline SPL defines an 8 MiB offset for the second
+stage.
+
+Assuming the SD card is exposed by device /dev/mmcblk0, the commands
+to write the two stages are:
+```shell
+  > dd if=idbspl.img of=/dev/mmcblk0 bs=1k seek=32
+  > dd if=u-boot.itb of=/dev/mmcblk0 bs=1k seek=8192
+```
+Setting up the kernel and rootfs is beyond the scope of this document.
+
+##### 当刷入EMMC的UBOOT损坏时或者无法启动时，如何进入MaskRom模式
+
+经过分析和尝试，在MMC芯片背后的六个测试短路点中找到了对应的两个短接点，如下图所示。首先短接两个点，然后加电启动，即可进入MaskRom模式。使用rkdeveloptool ld即可发现已经进入该模式。
+```shell
+$ rkdeveloptool/rkdeveloptool ld
+DevNo=1 Vid=0x2207,Pid=0x330c,LocationID=102    Maskrom
+$ rkdeveloptool/rkdeveloptool db u-boot-rk/rk3399_loader_v1.24.126.bin 
+Downloading bootloader succeeded.
+
 ```
 
 ### kernel
@@ -178,6 +275,7 @@ arch/arm64/boot/Image
 ```
 
 ### rootfs
+【备注：我把rootfs换成了ArchlinuxARM，可以正常启动，过程与原作者脚本中的步骤一致，不再重复】
 
 ```shell
 # 下载并解压 ubuntu-base
